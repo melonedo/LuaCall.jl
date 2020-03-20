@@ -1,21 +1,9 @@
 language: julia
 os:
-  - linux
-  - osx
-  - windows
-arch:
-  - x86
-  - x64
-  - arm64
+  - freebsd
 julia:
   - 1.3
-matrix:
-  exclude:
-    - os: osx
-      arch: arm64
-    - os: osx
-      arch: x86
-    - os: windows
-      arch: arm64
+  - 1.4
+  - nightly
 notifications:
   email: false
