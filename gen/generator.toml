@@ -1,0 +1,30 @@
+[general]
+library_name = "liblua"
+output_file_path = "../lib/LibLua.jl"
+module_name = "LibLua"
+jll_pkg_name = "Lua_jll"
+use_julia_native_enum_type = true
+prologue_file_path = "prologue.jl"
+# epilogue_file_path = "epilogue.jl"
+export_symbol_prefixes = ["lua_", "luaL_", "LUA_"]
+output_ignorelist = [
+    "LUA_VDIR",
+    "LUA_SHRDIR",
+    "LUALIB_API",
+    "LUAMOD_API",
+    "LUA_INTEGER_FMT",
+    "LUAI_MAXALIGN",
+    "LUA_VERSION",
+    "LUA_RELEASE",
+    "LUA_COPYRIGHT",
+    "lua_numbertointeger",
+    "l_floatatt",
+    "luaL_dostring",
+    "LUA_VERSUFFIX",
+]
+
+[codegen]
+use_deterministic_symbol = true
+
+[codegen.macro]
+macro_mode = "aggressive"
