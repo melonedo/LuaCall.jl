@@ -23,7 +23,18 @@ function del_object(i)
     GC_ROOT_FREE_LIST[] = i
 end
 
-function lua_gc(L::Ptr{lua_State})::Cint
+# Return number of objects remaining
+function check_gc_root()
+    free = 0
+    node = GC_ROOT_FREE_LIST[]
+    while node != 0
+        node = GC_ROOT[node]
+        free += 1
+    end
+    length(GC_ROOT) - free
+end
+
+function lua_gc(L::LuaState)::Cint
     ptr = lua_touserdata(L, -1)
     idx = unsafe_load_gc_index(ptr)
     del_object(idx)

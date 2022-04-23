@@ -6,7 +6,7 @@ using .LibLua
 using .LibLua: liblua
 
 export luaeval, luacall, LUA_STATE, @luascope, top
-export getjulia
+export getjulia, push_table!
 
 include("types.jl")
 include("luascope.jl")
@@ -63,12 +63,9 @@ end
 
 
 function luacall(f::Symbol, args...)
-    g = pushglobal!(LUA_STATE, f)
-    @assert unwrap_popstack(g) isa LuaCallable
-    # Poped by `pcall`
-    pop!(pcall(LUA_STATE, args...)) do ret
-        instantiate(ret)
-    end
+    g = pushglobal!(LUA_STATE, f) |> unwrap_popstack
+    @assert g isa LuaCallable
+    g(args...)
 end
 
 """
@@ -101,7 +98,6 @@ include("juliavalue.jl")
 
 function __init__()
     init(LUA_STATE)
-    luaL_dostring(LUA_STATE, "function i(x) for k,v in pairs(x) do print('lua', v) end end")
 end
 
 end

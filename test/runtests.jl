@@ -45,3 +45,48 @@ using Test
     end
     @test top(LUA_STATE) == 0
 end
+
+@testset "LuaTable" begin
+    @luascope LUA_STATE begin
+        d = Dict((1 => "hello", "str" => 1234, Ptr{Cvoid}(4321) => 234))
+        t1 = push_table!(LUA_STATE, d)
+        for (k, v) in d
+            @luascope LUA_STATE begin
+                v2 = t1[k]
+                @test v2 == v
+            end
+        end
+
+        t1.field = 4321
+        f = t1.field
+        @test f == 4321
+
+        t2 = push_table!(LUA_STATE)
+        for (k, v) in d
+            LuaCall.rawset!(t2, k, v)
+        end
+
+        for (k, v) in d
+            @luascope LUA_STATE begin
+                v2 = LuaCall.rawget(t2, k)
+                @test v2 == v
+            end
+        end
+
+        a = [4 3 2 1]
+        t3 = push_table!(LUA_STATE, a)
+        foreach(t3) do k, v
+            @test a[k] == v
+        end
+    end
+end
+
+@testset "GC" begin
+    @luascope LUA_STATE begin
+        luacall(:collectgarbage, "collect")
+        f = luaeval("local x; for _, v in pairs(...) do x = julia.Base end")
+        f(1:100)
+        luacall(:collectgarbage, "collect")
+    end
+    @test LuaCall.check_gc_root() == 1
+end

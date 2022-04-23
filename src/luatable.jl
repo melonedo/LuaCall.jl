@@ -64,17 +64,17 @@ end
 
 Set table data with raw access.
 """
-function rawset(T::LuaTable, k, v)
+function rawset!(T::LuaTable, k, v)
     push!(LS(T), k, v)
     lua_rawset(LS(T), idx(T))
 end
 
-function rawset(T::LuaTable, k::Integer, v)
+function rawset!(T::LuaTable, k::Integer, v)
     push!(LS(T), v)
     lua_rawseti(LS(T), idx(T), k)
 end
 
-function rawset(T::LuaTable, v, k::Ptr)
+function rawset!(T::LuaTable, k::Ptr, v)
     push!(LS(T), v)
     lua_rawsetp(LS(T), idx(T), k)
 end
@@ -109,4 +109,15 @@ function push_table!(LS::LuaState, arr::AbstractArray; narr=0, ndict=0)
         t[k] = v
     end
     PopStack(t, LS, 1)
+end
+
+const LuaIterable = Union{LuaTable,LuaUserData}
+
+function Base.foreach(f, t::LuaIterable)
+    checkstack(LS(t), 2)
+    @inbounds push!(LS(t), nothing)
+    while !iszero(lua_next(LS(t), idx(t)))
+        f(LS(t)[-2], LS(t)[-1])
+        pop!(LS(t), 1)
+    end
 end
