@@ -78,6 +78,15 @@ end
         foreach(t3) do k, v
             @test a[k] == v
         end
+
+        mt = new_table!(LUA_STATE, Dict(["__name" => "hello"]))
+        obj = new_table!(LUA_STATE)
+        set_metatable!(obj, mt)
+        mt1 = get_metatable(obj)
+        @test mt1 == mt
+        f = luaeval("return tostring(getmetatable(...).__name)")
+        name = f(obj)
+        @test name == "hello"
     end
 end
 
@@ -111,6 +120,39 @@ end
     ud = new_userdata!(LUA_STATE, 0)
     @test_throws ErrorException push!(LUA_STATE, ud)
     pop!(LUA_STATE, 1)
+end
+
+@testset "global" begin
+    LS = LuaState()
+    @luascope LS begin
+        LS.foo = "bar"
+        field1 = LS.foo
+        @test field1 == "bar"
+
+        gt = get_globaltable(LS)
+        field2 = gt.foo
+        @test field2 == "bar"
+    end
+end
+
+@testset "@luascope" begin
+    @luascope LUA_STATE begin
+        t, num = @luascope LUA_STATE begin
+            t = new_table!(LUA_STATE)
+            t[1] = 2
+            @luareturn t 1234
+        end
+        v = t[1]
+        @test v == 2
+        t, num = @luascope LUA_STATE begin
+            t = new_table!(LUA_STATE)
+            t[1] = 2
+            @luareturn t 1234
+        end
+        v = t[1]
+        @test v == 2
+        @test num == 1234
+    end
 end
 
 @testset "GC" begin

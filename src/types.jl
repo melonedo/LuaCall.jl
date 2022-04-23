@@ -78,6 +78,8 @@ struct PopStack{T}
     npop::Cint
 end
 
+PopStack(data::T, LS, npop) where {T} = PopStack{T}(data, LS, npop)
+
 
 struct LuaFunction <: OnLuaStack
     LS::LuaState
@@ -104,4 +106,14 @@ struct LuaUserData <: OnLuaStack
     LS::LuaState
     idx::Cint
     LuaUserData(LS::LuaState, idx) = new(LS, lua_absindex(LS, idx))
+end
+
+function Base.:(==)(obj1::OnLuaStack, obj2::OnLuaStack)
+    LS(obj1) == LS(obj2) || return false
+    lua_compare(LS(obj1), idx(obj1), idx(obj2), LUA_OPEQ) |> !iszero
+end
+
+function Base.isless(obj1::OnLuaStack, obj2::OnLuaStack)
+    LS(obj1) == LS(obj2) || return false
+    lua_compare(LS(obj1), idx(obj1), idx(obj2), LUA_OPLT) |> !iszero
 end

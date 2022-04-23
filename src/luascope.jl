@@ -13,15 +13,8 @@ function luareturn_impl(LS::LuaState, old_base, vars...)
         end
     end
     lua_rotate(LS, old_base + 1, new_base[] - old_base)
-    new_base[], PopStack(moved, LS, new_base[] - old_base)
+    new_base[], moved
 end
-
-# function luareturn_impl(LS::LuaState, nret, old_top, vars...)
-#     push!(LS, vars...)
-#     lua_rotate(LS, old_top + 1, nret)
-#     ret = [LS[old_top+i] for i in 1:nret]
-#     old_top + nret, PopStack(ret, LS, nret)
-# end
 
 function luascope_impl(__module__, LS_expr, code::Expr)
     @assert code.head == :block
@@ -39,10 +32,12 @@ function luascope_impl(__module__, LS_expr, code::Expr)
         elseif expr isa Expr && expr.head == :macrocall &&
                expr.args[1] == Symbol("@luareturn")
             vars = expr.args[3:end]
+            nvars = length(vars)
             ret = gensym(:ret)
+            ret_expr = nvars == 1 ? ret : Expr(:tuple, (:($ret[$i]) for i in 1:nvars)...)
             push!(body, quote
                 $base, $ret = $luareturn_impl($LS, $base, $(vars...))
-                $ret
+                $PopStack($ret_expr, $LS, $nvars)
             end)
         else
             push!(body, expr)
@@ -69,7 +64,7 @@ LS = LUA_STATE
 @luascope LS begin
     t::LuaTable = new_table!(LS)
     t[1] = 2
-    @luaretrn t
+    @luareturn t
 end
 ```
 
