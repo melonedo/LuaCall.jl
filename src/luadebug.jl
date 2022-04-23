@@ -1,6 +1,4 @@
-struct LuaError <: Exception
-    msg::String
-end
+
 
 function LuaError(LS::LuaState)
     msg = LS[]

@@ -1,9 +1,4 @@
 
-struct LuaUserData <: OnLuaStack
-    LS::LuaState
-    idx::Cint
-    LuaUserData(LS::LuaState, idx) = new(LS, lua_absindex(LS, idx))
-end
 
 function get_userdata(UD::LuaUserData)
     lua_touserdata(LS(UD), idx(UD))
@@ -20,7 +15,8 @@ function set_uservalue!(UD::LuaUserData, i, v)
 end
 
 function push_userdata!(LS::LuaState, size, uservalues=())
-    push!(LS, uservalues...)
+    checkstack(length(uservalues) + 1)
+    @inbounds push!(LS, uservalues...)
     lua_newuserdatauv(LS, size, length(uservalues))
     UD = LuaUserData(LS, -1)
     PopStack(UD, LS, 1)

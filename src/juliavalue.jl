@@ -35,6 +35,7 @@ end
     const JULIA_IDENTITY = "__julia"
 
 This field identifies a Julia object from other Lua userdata. 
+Call `getjulia` to convert such Lua userdata to a Julia object.
 
 Implementation detail:
 LuaCall place all Julia objects that are passed to Lua in a global
@@ -44,7 +45,6 @@ is freed by `__gc` callback when Lua frees the userdata.
 const JULIA_IDENTITY = "__julia"
 
 
-# 0 is error from `lua_tointeger`
 const JULIA_IDENTITY_OBJECT = 1
 const JULIA_IDENTITY_MODULE = 2
 
@@ -62,40 +62,22 @@ end
 ```
 =#
 
-function lua_next(LS::LuaState)::Cint
-    try
-        iter, state_key = getjulia.((LS[-2], LS[-1]))
-        if isnothing(state_key)
-            # initial call
-            it = iterate(iter)
-        else
-            # subsequent call
-            it = iterate(iter, state_key.state)
-        end
-        if isnothing(it)
-            push!(LS, 0)
-            return 1
-        else
-            (key, value), state = it
-            push!(LS, 0, StateKey(state, key), value)
-            return 3
-        end
-    catch e
-        @debug "Error occurred when Lua calls Julia function `julia_next`" exception = (e, catch_backtrace())
-        push!(LS, 1, sprint(showerror, e))
-        return 2
+
+function lua_iterate(iter, state)
+    ret = if isnothing(state)
+        iterate(iter)
+    else
+        iterate(iter, state)
+    end
+    if isnothing(ret)
+        nothing
+    else
+        MultipleReturn((ret[2], ret[1]))
     end
 end
 
-struct StateKey{S,K}
-    state::S
-    key::K
-end
-
-lua_index(iter, sk::StateKey) = iter[sk.key]
 lua_index(iter, key) = iter[key]
 
-lua_newindex(table, sk::StateKey, value) = setindex!(table, value, sk.key)
 lua_newindex(table, key, value) = setindex!(table, value, key)
 
 lua_call(f, args...) = f(args...)
@@ -104,7 +86,7 @@ lua_length(x) = length(x)
 
 lua_tostring(x) = string(x)
 
-lua_idiv(x, y) = x // y
+lua_idiv(x, y) = x ÷ y
 
 lua_concat(x, y) = error("Lua concat operator `..` is not defined for $(typeof(x)) and $(typeof(y))")
 
@@ -131,9 +113,10 @@ function init_julia_value_metatable(LS::LuaState)
         wrapper = luaeval(LS, get_julia_function_wrapper(1))
         @mirror_method __add (+)
         @mirror_method __sub (-)
-        @mirror_method __mol (*)
+        @mirror_method __mul (*)
         @mirror_method __div (/)
         @mirror_method __mod (%)
+        @mirror_method __pow (^)
         @mirror_method __unm (-) 1
         @mirror_method __idiv lua_idiv
         @mirror_method __band (&)
@@ -155,16 +138,16 @@ function init_julia_value_metatable(LS::LuaState)
         pairs_wrapper_code = """
             local iter, state = ...
             return function (self)
-                return iter, state(self) --, nil, nil
+                return iter, self --, nil, nil
             end
             """
         pairs_wrapper = luaeval(LS, pairs_wrapper_code)
-        wrapper2 = luaeval(LS, get_julia_function_wrapper(2))
         f = push_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(pairs, 1))
         julia_pairs = wrapper(f)
         
-        f = push_cfunction!(LS, @lua_CFunction lua_next)
-        julia_next = wrapper2(f)
+        wrapper3 = luaeval(LS, get_julia_function_wrapper(3))
+        f = push_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(lua_iterate, 2))
+        julia_next = wrapper3(f)
         
         pairs_wrapped = pairs_wrapper(julia_next, julia_pairs)
         t["__pairs"] = pairs_wrapped

@@ -1,10 +1,5 @@
 
 
-struct LuaFunction <: OnLuaStack
-    LS::LuaState
-    idx::Cint
-    LuaFunction(LS::LuaState, idx) = new(LS, lua_absindex(LS, idx))
-end
 
 const LuaCallable = Union{LuaFunction,LuaTable,LuaUserData}
 
@@ -45,19 +40,27 @@ You may optionally associate upvalues with it, which can be accessed
 in the function with pseudo-index `lua_upvalueindex`.
 """
 function push_cfunction!(LS::LuaState, f::Ptr{Cvoid}, upvalues...)
-    push!(LS, upvalues...)
+    checkstack(LS, length(upvalues) + 1)
+    @inbounds push!(LS, upvalues...)
     lua_pushcclosure(LS, f, length(upvalues))
     PopStack(getstack(LS, -1, LuaFunction), LS, 1)
+end
+
+struct MultipleReturn{T}
+    ret::T
 end
 
 """
     LuaFunctionWrapper{func,narg}
 
-Wrap a Julia function and return a single-return-value C function acceptable by Lua.
+Wrap a Julia `@cfunction` into a Lua function which handles error and yield.
+Return a single value unless the return values is wrapped in `MultipleReturn`.
 
 To avoid jumping out of `@cfunction`, this function returns a status code
 (0 for normal return, 1 for error, 2 for yield), and the real return is handled
-by Lua code. See `get_julia_function_wrapper`
+by Lua code. See `get_julia_function_wrapper`.
+
+TODO: Multiple return need an C wrapper.
 """
 struct LuaFunctionWrapper{func,narg} end
 LuaFunctionWrapper(f, narg) = LuaFunctionWrapper{f,narg}()
@@ -72,8 +75,14 @@ function (::LuaFunctionWrapper{func,narg})(LS::Ptr{lua_State})::Cint where {func
     try
         args = (getjulia(LS[i]) for i in 1:cur_top)
         ret = func(args...)
-        push!(LS, 0, ret)
-        return 2
+        if ret isa MultipleReturn
+            ret = ret.ret
+            push!(LS, 0, ret...)
+            return 1 + length(ret)
+        else
+            push!(LS, 0, ret)
+            return 2
+        end
     catch e
         @debug "Error occurred when Lua calls Julia function `$func`" exception = (e, catch_backtrace())
         # `lua_error` is implemented as longjmp that jump out of this @cfunction

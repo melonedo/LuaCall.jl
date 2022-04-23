@@ -327,7 +327,7 @@ function lua_warning(L, msg, tocont)
 end
 
 function lua_error(L)
-    ccall((:lua_error, liblua), Union{}, (Ptr{lua_State},), L)
+    ccall((:lua_error, liblua), Cint, (Ptr{lua_State},), L)
 end
 
 function lua_next(L, idx)
@@ -674,6 +674,18 @@ struct luaL_Stream
     closef::lua_CFunction
 end
 
+function jl_lua_int_type()
+    ccall((:jl_lua_int_type, liblua), Cint, ())
+end
+
+function jl_lua_float_type()
+    ccall((:jl_lua_float_type, liblua), Cint, ())
+end
+
+function jl_lua_function_wrapper(L)
+    ccall((:jl_lua_function_wrapper, liblua), Cint, (Ptr{lua_State},), L)
+end
+
 function luaopen_base(L)
     ccall((:luaopen_base, liblua), Cint, (Ptr{lua_State},), L)
 end
@@ -800,8 +812,6 @@ lua_integer2str(s, sz, n) = l_sprintf(s, sz, LUA_INTEGER_FMT, LUAI_UACINT(n))
 
 const LUA_UNSIGNED = unsigned(LUAI_UACINT)
 
-# Skipping MacroDefinition: LUA_UNSIGNEDBITS ( sizeof ( LUA_UNSIGNED ) * CHAR_BIT )
-
 const LUA_MAXINTEGER = LLONG_MAX
 
 const LUA_MAXUNSIGNED = ULLONG_MAX
@@ -824,11 +834,11 @@ const LUA_IDSIZE = 60
 
 # Skipping MacroDefinition: LUAL_BUFFERSIZE ( ( int ) ( 16 * sizeof ( void * ) * sizeof ( lua_Number ) ) )
 
-const LUA_VERSION_RELEASE = "3"
+const LUA_VERSION_RELEASE = "4"
 
 const LUA_VERSION_NUM = 504
 
-const LUA_VERSION_RELEASE_NUM = LUA_VERSION_NUM * 100 + 0
+const LUA_VERSION_RELEASE_NUM = LUA_VERSION_NUM * 100 + 4
 
 const LUA_AUTHORS = "R. Ierusalimschy, L. H. de Figueiredo, W. Celes"
 
@@ -1056,6 +1066,8 @@ luaL_opt(L, f, n, d) = if lua_isnoneornil(L, n)
 
 luaL_loadbuffer(L, s, sz, n) = luaL_loadbufferx(L, s, sz, n, NULL)
 
+luaL_intop(op, v1, v2) = lua_Integer((((lua_Unsigned(v1))(op))(lua_Unsigned))(v2))
+
 luaL_pushfail(L) = lua_pushnil(L)
 
 lua_assert(c) = Cvoid(0)
@@ -1091,6 +1103,12 @@ lua_writestring(s, l) = fwrite(s, sizeof(Cchar), l, stdout)
 lua_writeline() = (lua_writestring("\n", 1), fflush(stdout))
 
 lua_writestringerror(s, p) = (fprintf(stderr, s, p), fflush(stderr))
+
+const LUA_FUNCTION_WRAPPER_STATUS_NORMAL = 0
+
+const LUA_FUNCTION_WRAPPER_STATUS_ERROR = 1
+
+const LUA_FUNCTION_WRAPPER_STATUS_YIELD = 2
 
 const LUA_COLIBNAME = "coroutine"
 

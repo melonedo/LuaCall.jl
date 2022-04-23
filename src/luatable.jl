@@ -1,13 +1,4 @@
-"""
-    LuaTable
 
-Wrapper for a Lua table on stack.
-"""
-struct LuaTable <: OnLuaStack
-    LS::LuaState
-    idx::Cint
-    LuaTable(LS::LuaState, idx) = new(LS, lua_absindex(LS, idx))
-end
 
 
 function Base.getindex(T::LuaTable, k)
@@ -57,7 +48,9 @@ function Base.setindex!(T::LuaTable, v, k)
 end
 
 function Base.setindex!(T::LuaTable, v, k::AbstractString)
-    push!(LS(T), v)
+    # lua_setfield may implicitly push a new field, what???
+    checkstack(LS(T), 2)
+    @inbounds push!(LS(T), v)
     lua_setfield(LS(T), idx(T), k)
 end
 
@@ -97,6 +90,7 @@ Create a Lua table and push it to the stack. Also opy data from `dict` or `arr` 
 `narr` and `ndict` are hint for number of sequential elements and other elements.
 """
 function push_table!(LS::LuaState; narr=0, ndict=0)
+    checkstack(LS, 1)
     lua_createtable(LS, narr, ndict)
     PopStack(LuaTable(LS, -1), LS, 1)
 end

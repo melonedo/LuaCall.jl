@@ -5,58 +5,22 @@ include("../lib/LibLua.jl")
 using .LibLua
 using .LibLua: liblua
 
-export luaeval, luacall, LUA_STATE, @luascope
+export luaeval, luacall, LUA_STATE, @luascope, top
+export getjulia
 
+include("types.jl")
+include("luascope.jl")
 include("luastate.jl")
 include("luadebug.jl")
 
 const LUA_STATE = LuaStateWraper(C_NULL)
 
-# Directly added to the artifact
-@assert ccall((:jl_lua_int_type, liblua), Cint, ()) == LibLua.LUA_INT_TYPE
-@assert ccall((:jl_lua_float_type, liblua), Cint, ()) == LibLua.LUA_FLOAT_TYPE
-
-const LuaInt = let t = LibLua.LUA_INT_TYPE
-    t == 1 ? Cint :
-    t == 2 ? Clong :
-    t == 3 ? Clonglong :
-    error("unknown Lua integer type")
-end
-
-const LuaFloat = let t = LibLua.LUA_FLOAT_TYPE
-    t == 1 ? Cfloat :
-    t == 2 ? Cdouble :
-    t == 3 ? error("Julia does not natively support long doubles") :
-    error("unknown Lua float type")
-end
 
 
-"""
-    OnStackType
-
-Values of this type are valid only for the current Lua stack frame. For safety, they are always wrapped in a `PopStack` wrapper.
-"""
-abstract type OnLuaStack end
-
-LS(x::OnLuaStack) = getfield(x, :LS)
-idx(x::OnLuaStack) = getfield(x, :idx)
-
-"""
-    PopStack{T}
-
-A data type to protect from passing Values on the Lua stack around carelessly.
-You should either take care to restore Lua stack, or use `@luascope`
-"""
-struct PopStack{T}
-    data::T
-    LS::LuaState
-    npop::Cint
-end
 
 PopStack(data::T, LS, npop) where {T} = PopStack{T}(data, LS, npop)
 
 
-include("luascope.jl")
 include("luatable.jl")
 include("luauserdata.jl")
 include("luafunction.jl")
@@ -69,7 +33,7 @@ function luaL_dostring(LS, s, args...)
 end
 
 """
-    luaeval(LS::LuaState, str)
+    luaeval([LS::LuaState, ]str)
 
 Evaluate the given Lua code, return the resulting function.
 
@@ -90,6 +54,8 @@ function luaeval(LS::LuaState, str)
     rc == LUA_OK || throw(LuaError(LS))
     PopStack(getstack(LS, -1, LuaFunction), LS, 1)
 end
+
+luaeval(str) = luaeval(LUA_STATE, str)
 
 macro lua_str(code::String)
     luaL_dostring(LUA_STATE, code)
