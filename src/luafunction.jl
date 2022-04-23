@@ -73,7 +73,7 @@ function (::LuaFunctionWrapper{func,narg})(LS::Ptr{lua_State})::Cint where {func
     end
 
     try
-        args = (getjulia(LS[i]) for i in 1:cur_top)
+        args = (get_julia(LS[i]) for i in 1:cur_top)
         ret = func(args...)
         if ret isa MultipleReturn
             ret = ret.ret

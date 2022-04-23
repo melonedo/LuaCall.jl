@@ -43,7 +43,7 @@ getstack(LS::LuaState, idx, ::Type{Nothing}) = nothing
 getstack(LS::LuaState, idx, ::Type{Bool}) = lua_toboolean(LS, idx)
 getstack(LS::LuaState, idx, ::Type{<:Integer}) = lua_tointeger(LS, idx)
 getstack(LS::LuaState, idx, ::Type{<:AbstractFloat}) = lua_tonumber(LS, idx)
-getstack(LS::LuaState, idx, ::Type{Ptr{Cvoid}}) = lua_getuservalue(LS, idx)
+getstack(LS::LuaState, idx, ::Type{Ptr{Cvoid}}) = lua_touserdata(LS, idx)
 getstack(LS::LuaState, idx, T::Type{<:OnLuaStack}) = T(LS, idx)
 
 function getstack(LS::LuaState, idx, ::Type{<:AbstractString})

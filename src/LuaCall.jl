@@ -6,7 +6,9 @@ using .LibLua
 using .LibLua: liblua
 
 export luaeval, luacall, LUA_STATE, @luascope, top
-export getjulia, push_table!
+export get_julia, new_table!, get_uservalue, set_uservalue!
+export new_userdata!
+export LuaState, LuaTable, LuaUserData, LuaThread, LuaFunction
 
 include("types.jl")
 include("luascope.jl")
@@ -27,10 +29,6 @@ include("luafunction.jl")
 include("luathread.jl")
 include("luastack.jl")
 
-function luaL_dostring(LS, s, args...)
-    luaeval(LS, s)
-    pcall(LS, args...; multiret=true)
-end
 
 """
     luaeval([LS::LuaState, ]str)
@@ -66,28 +64,6 @@ function luacall(f::Symbol, args...)
     g = pushglobal!(LUA_STATE, f) |> unwrap_popstack
     @assert g isa LuaCallable
     g(args...)
-end
-
-"""
-    registry(LS::LuaState)
-
-Get the Lua registry.
-"""
-registry(LS::LuaState) = LuaTable(LS, LUA_REGISTRYINDEX)
-
-function push_metatable!(obj::Union{LuaTable,LuaUserData})
-    @assert lua_getmetatable(LS(obj), idx(obj)) == 1
-    PopStack(LuaTable(LS(obj), -1), LS(obj), 1)
-end
-
-"""
-    set_metatable!(obj::Union{LuaTable,LuaUserData}, table)
-
-Set metatable for `obj`, if `table` is `nothing`, unset the metatable.
-"""
-function set_metatable!(obj::Union{LuaTable,LuaUserData}, table)
-    push!(LS(obj), table)
-    lua_setmetatable(LS(obj), idx(obj))
 end
 
 function stackdump(LS::LuaState)

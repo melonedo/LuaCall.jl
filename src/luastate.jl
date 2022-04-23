@@ -43,6 +43,28 @@ function pushglobaltable!(LS::LuaState)
     PopStack(LuaTable(LS, -1), LS, 1)
 end
 
+"""
+    registry(LS::LuaState)
+
+Get the Lua registry.
+"""
+registry(LS::LuaState) = LuaTable(LS, LUA_REGISTRYINDEX)
+
+function push_metatable!(obj::Union{LuaTable,LuaUserData})
+    @assert lua_getmetatable(LS(obj), idx(obj)) == 1
+    PopStack(LuaTable(LS(obj), -1), LS(obj), 1)
+end
+
+"""
+    set_metatable!(obj::Union{LuaTable,LuaUserData}, table)
+
+Set metatable for `obj`, if `table` is `nothing`, unset the metatable.
+"""
+function set_metatable!(obj::Union{LuaTable,LuaUserData}, table)
+    push!(LS(obj), table)
+    lua_setmetatable(LS(obj), idx(obj))
+end
+
 function init(LS::LuaStateWraper; init_julia=true)
     L = luaL_newstate()
     L == C_NULL && error("Failed to initialize Lua")

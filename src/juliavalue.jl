@@ -46,7 +46,7 @@ end
     const JULIA_IDENTITY = "__julia"
 
 This field identifies a Julia object from other Lua userdata. 
-Call `getjulia` to convert such Lua userdata to a Julia object.
+Call `get_julia` to convert such Lua userdata to a Julia object.
 
 Implementation detail:
 LuaCall place all Julia objects that are passed to Lua in a global
@@ -114,7 +114,7 @@ const JULIA_METATABLE_OBJECT = "julia_metatable_object"
 
 function init_julia_value_metatable(LS::LuaState)
     @luascope LS begin
-        t = push_table!(LS)
+        t = new_table!(LS)
         registry(LS)[JULIA_METATABLE_OBJECT] = t
         t[JULIA_IDENTITY] = JULIA_IDENTITY_OBJECT
         # Not wrapped
@@ -174,7 +174,7 @@ julia_setproperty(x, f, v) = setproperty!(x, Symbol(f), v)
 # I don't like so many mapped methods for modules
 function init_julia_module_metatable(LS::LuaState)
     @luascope LS begin
-        t = push_table!(LS; ndict=4)
+        t = new_table!(LS; ndict=4)
         registry(LS)[JULIA_METATABLE_MODULE] = t
 
         t[JULIA_IDENTITY] = JULIA_IDENTITY_MODULE
@@ -217,9 +217,9 @@ function pushstack!(LS::LuaState, obj)
     push_julia_object!(LS, obj)
 end
 
-getjulia(x) = x
+get_julia(x) = x
 
-function getjulia(ud::LuaUserData)
+function get_julia(ud::LuaUserData)
     t = luaL_getmetafield(LS(ud), idx(ud), JULIA_IDENTITY)
     t == LUA_TNIL && return ud
     pop!(LS(ud), 1)

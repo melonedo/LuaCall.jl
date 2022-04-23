@@ -67,7 +67,7 @@ Manage Lua stack for all top-level expressions in this block. Usage:
 ```julia
 LS = LUA_STATE
 @luascope LS begin
-    t::LuaTable = push_table!(LS)
+    t::LuaTable = new_table!(LS)
     t[1] = 2
     @luaretrn t
 end

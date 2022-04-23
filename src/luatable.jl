@@ -82,29 +82,29 @@ end
 
 
 """
-    push_table!(LS::LuaState; narr=0, ndict=0)
-    push_table!(LS::LuaState, dict::AbstractDict; narr=0, ndict=0)
-    push_table(LS::LuaState, arr::AbstractArray; narr=0, ndict=0)
+    new_table!(LS::LuaState; narr=0, ndict=0)
+    new_table!(LS::LuaState, dict::AbstractDict; narr=0, ndict=0)
+    new_table(LS::LuaState, arr::AbstractArray; narr=0, ndict=0)
     
 Create a Lua table and push it to the stack. Also opy data from `dict` or `arr` into the table.
 `narr` and `ndict` are hint for number of sequential elements and other elements.
 """
-function push_table!(LS::LuaState; narr=0, ndict=0)
+function new_table!(LS::LuaState; narr=0, ndict=0)
     checkstack(LS, 1)
     lua_createtable(LS, narr, ndict)
     PopStack(LuaTable(LS, -1), LS, 1)
 end
 
-function push_table!(LS::LuaState, dict::AbstractDict; narr=0, ndict=0)
-    t = push_table!(LS; narr, ndict=ndict != 0 ? ndict : length(dict)) |> unwrap_popstack
+function new_table!(LS::LuaState, dict::AbstractDict; narr=0, ndict=0)
+    t = new_table!(LS; narr, ndict=ndict != 0 ? ndict : length(dict)) |> unwrap_popstack
     for (k, v) in pairs(dict)
         t[k] = v
     end
     PopStack(t, LS, 1)
 end
 
-function push_table!(LS::LuaState, arr::AbstractArray; narr=0, ndict=0)
-    t = push_table!(LS; narr=narr != 0 ? narr : length(arr), ndict) |> unwrap_popstack
+function new_table!(LS::LuaState, arr::AbstractArray; narr=0, ndict=0)
+    t = new_table!(LS; narr=narr != 0 ? narr : length(arr), ndict) |> unwrap_popstack
     for (k, v) in enumerate(arr)
         t[k] = v
     end

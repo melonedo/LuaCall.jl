@@ -8,22 +8,22 @@ using Test
         B1 = inv(A)
         lua_inv = luaeval("return julia.inv(...)")
         B2 = lua_inv(A)
-        @test B1 == getjulia(B2)
+        @test B1 == get_julia(B2)
 
         C1 = A + A
         lua_add = luaeval("local A = ...; return A + A")
         C2 = lua_add(A)
-        @test C1 == getjulia(C2)
+        @test C1 == get_julia(C2)
 
         D1 = A^2
         lua_square = luaeval("local A = ...; return A ^ 2")
         D2 = lua_square(A)
-        @test D1 == getjulia(D2)
+        @test D1 == get_julia(D2)
 
         E1 = A[3]
         lua_index = luaeval("local A, i = ...; return A[i]")
         E2 = lua_index(A, 3)
-        @test E1 == getjulia(E2)
+        @test E1 == get_julia(E2)
 
         A = [1, 3, 5]
         keysum1, valsum1 = 0, 0
@@ -49,7 +49,7 @@ end
 @testset "LuaTable" begin
     @luascope LUA_STATE begin
         d = Dict((1 => "hello", "str" => 1234, Ptr{Cvoid}(4321) => 234))
-        t1 = push_table!(LUA_STATE, d)
+        t1 = new_table!(LUA_STATE, d)
         for (k, v) in d
             @luascope LUA_STATE begin
                 v2 = t1[k]
@@ -61,7 +61,7 @@ end
         f = t1.field
         @test f == 4321
 
-        t2 = push_table!(LUA_STATE)
+        t2 = new_table!(LUA_STATE)
         for (k, v) in d
             LuaCall.rawset!(t2, k, v)
         end
@@ -74,11 +74,43 @@ end
         end
 
         a = [4 3 2 1]
-        t3 = push_table!(LUA_STATE, a)
+        t3 = new_table!(LUA_STATE, a)
         foreach(t3) do k, v
             @test a[k] == v
         end
     end
+end
+
+@testset "LuaUserdata" begin
+    struct IntAndFloat
+        i::Int
+        f::Float64
+    end
+    @luascope LUA_STATE begin
+        ud = new_userdata!(LUA_STATE, sizeof(IntAndFloat), 1)
+        set_uservalue!(ud, 1, "hello")
+        uv = get_uservalue(ud, 1)
+        @test uv == "hello"
+    end
+end
+
+@testset "getstack" begin
+    @luascope LUA_STATE begin
+        values = [nothing, false, 1234, 12.34, "hello", Ptr{Cvoid}(123456)]
+        for v in values
+            push!(LUA_STATE, v)
+            @test LUA_STATE[] == v
+        end
+        push!(LUA_STATE, :sym)
+        @test LUA_STATE[] == "sym"
+        new_table!(LUA_STATE)
+        @test LUA_STATE[] isa LuaTable
+        ud = new_userdata!(LUA_STATE, 0)
+        @test LUA_STATE[] isa LuaUserData
+    end
+    ud = new_userdata!(LUA_STATE, 0)
+    @test_throws ErrorException push!(LUA_STATE, ud)
+    pop!(LUA_STATE, 1)
 end
 
 @testset "GC" begin
@@ -89,4 +121,5 @@ end
         luacall(:collectgarbage, "collect")
     end
     @test LuaCall.check_gc_root() == 1
+    @test LUA_STATE |> top == 0
 end
