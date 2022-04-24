@@ -75,5 +75,9 @@ pushstack!(LS::LuaState, x::AbstractString) = lua_pushlstring(LS, x, length(x))
 pushstack!(LS::LuaState, x::Ptr) = lua_pushlightuserdata(LS, x)
 pushstack!(LS::LuaState, x::Symbol) = pushstack!(LS, string(x))
 pushstack!(LS::LuaState, x::OnLuaStack) = lua_pushvalue(LS, idx(x))
-
 pushstack!(_::LuaState, _::PopStack) = error("You should not push PopStack")
+
+
+function stackdump(LS::LuaState)
+    [LS[i] for i in 1:top(LS)]
+end

@@ -1,15 +1,15 @@
 # Directly added to the artifact
-@assert ccall((:jl_lua_int_type, liblua), Cint, ()) == LibLua.LUA_INT_TYPE
-@assert ccall((:jl_lua_float_type, liblua), Cint, ()) == LibLua.LUA_FLOAT_TYPE
+@assert LibLua.jl_lua_int_type() == LUA_INT_TYPE
+@assert LibLua.jl_lua_float_type() == LUA_FLOAT_TYPE
 
-const LuaInt = let t = LibLua.LUA_INT_TYPE
+const LuaInt = let t = LUA_INT_TYPE
     t == 1 ? Cint :
     t == 2 ? Clong :
     t == 3 ? Clonglong :
     error("unknown Lua integer type")
 end
 
-const LuaFloat = let t = LibLua.LUA_FLOAT_TYPE
+const LuaFloat = let t = LUA_FLOAT_TYPE
     t == 1 ? Cfloat :
     t == 2 ? Cdouble :
     t == 3 ? error("Julia does not natively support long doubles") :

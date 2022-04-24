@@ -1,12 +1,19 @@
 
 
-function LuaStateWraper()
+function LuaStateWraper(julia_module::Union{Nothing,Module})
     LS = LuaStateWraper(C_NULL)
-    init(LS)
+    init(LS; julia_module)
     LS
 end
 
-LuaState() = LuaStateWraper()
+
+"""
+    LuaState(julia_module=Main)
+
+Create a new Lua state, with `julia_module` set to Lua global varaible `julia`
+or not set if `nothing` is passed.
+"""
+LuaState(julia_module=Main) = LuaStateWraper(julia_module)
 
 
 "Push values to the stack. This function also calls `lua_checkstack` as `@boundscheck`."
@@ -70,17 +77,17 @@ function set_metatable!(obj::Union{LuaTable,LuaUserData}, table::LuaTable)
     lua_setmetatable(LS(obj), idx(obj))
 end
 
-function init(LS::LuaStateWraper; init_julia=true)
+function init(LS::LuaStateWraper; julia_module=Main)
     L = luaL_newstate()
     L == C_NULL && error("Failed to initialize Lua")
     setfield!(LS, :L, L)
     luaL_openlibs(LS)
     finalizer(lua_close, LS)
 
-    init_julia_value_metatable(LUA_STATE)
-    init_julia_module_metatable(LUA_STATE)
-    @luascope LUA_STATE begin
-        mod = pushstack!(LUA_STATE, Main)
-        set_global!(LUA_STATE, "julia", mod)
+    init_julia_value_metatable(LS)
+    init_julia_module_metatable(LS)
+    @luascope LS begin
+        mod = pushstack!(LS, julia_module)
+        set_global!(LS, "julia", mod)
     end
 end

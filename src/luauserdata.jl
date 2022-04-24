@@ -14,8 +14,8 @@ function set_uservalue!(UD::LuaUserData, i, v)
     lua_setiuservalue(LS(UD), idx(UD), i)
 end
 
-function new_userdata!(LS::LuaState, size, num=0)
-    lua_newuserdatauv(LS, size, num)
+function new_userdata!(LS::LuaState, size, nuservalue=0)
+    lua_newuserdatauv(LS, size, nuservalue)
     UD = LuaUserData(LS, -1)
     PopStack(UD, LS, 1)
 end

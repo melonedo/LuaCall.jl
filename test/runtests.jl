@@ -122,16 +122,30 @@ end
     pop!(LUA_STATE, 1)
 end
 
-@testset "global" begin
+@testset "globals" begin
     LS = LuaState()
     @luascope LS begin
+        main = LS.julia
+        @test get_julia(main) == Main
+
         LS.foo = "bar"
         field1 = LS.foo
-        @test field1 == "bar"
-
+        @test get_julia(field1) == "bar"
+        
         gt = get_globaltable(LS)
         field2 = gt.foo
         @test field2 == "bar"
+    end
+end
+
+@testset "LuaFunction" begin
+    @luascope LUA_STATE begin
+        f = new_cfunction!(LUA_STATE, LuaCall.@lua_CFunction LuaCall.LuaFunctionWrapper(+,2))
+        @test iscfunction(f)
+        status, x = f(1, 2; multiret=true)
+        @test status == 0 && x == 3
+        f = luaeval("return 1")
+        @test !iscfunction(f)
     end
 end
 

@@ -105,7 +105,7 @@ lua_concat(x, y) = error("Lua concat operator `..` is not defined for $(typeof(x
 # @luacall does not work behind macros
 macro mirror_method(lua_name, julia_name, nargs=1)
     esc(quote
-        f = push_cfunction!(LS, @lua_CFunction LuaFunctionWrapper($julia_name, $nargs)) |> unwrap_popstack
+        f = new_cfunction!(LS, @lua_CFunction LuaFunctionWrapper($julia_name, $nargs)) |> unwrap_popstack
         t[$(string(lua_name))] = wrapper(f) |> unwrap_popstack
     end)
 end
@@ -118,7 +118,7 @@ function init_julia_value_metatable(LS::LuaState)
         registry(LS)[JULIA_METATABLE_OBJECT] = t
         t[JULIA_IDENTITY] = JULIA_IDENTITY_OBJECT
         # Not wrapped
-        f = push_cfunction!(LS, @lua_CFunction lua_gc)
+        f = new_cfunction!(LS, @lua_CFunction lua_gc)
         t["__gc"] = f
 
         wrapper = luaeval(LS, get_julia_function_wrapper(1))
@@ -153,13 +153,13 @@ function init_julia_value_metatable(LS::LuaState)
             end
             """
         pairs_wrapper = luaeval(LS, pairs_wrapper_code)
-        f = push_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(pairs, 1))
+        f = new_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(pairs, 1))
         julia_pairs = wrapper(f)
-        
+
         wrapper3 = luaeval(LS, get_julia_function_wrapper(3))
-        f = push_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(lua_iterate, 2))
+        f = new_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(lua_iterate, 2))
         julia_next = wrapper3(f)
-        
+
         pairs_wrapped = pairs_wrapper(julia_next, julia_pairs)
         t["__pairs"] = pairs_wrapped
     end
@@ -178,17 +178,17 @@ function init_julia_module_metatable(LS::LuaState)
         registry(LS)[JULIA_METATABLE_MODULE] = t
 
         t[JULIA_IDENTITY] = JULIA_IDENTITY_MODULE
-        t["__gc"] = push_cfunction!(LS, @lua_CFunction lua_gc)
+        t["__gc"] = new_cfunction!(LS, @lua_CFunction lua_gc)
 
         wrapper = luaeval(LS, get_julia_function_wrapper(1))
 
-        f = push_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(julia_getproperty, 2))
+        f = new_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(julia_getproperty, 2))
         t.__index = wrapper(f)
 
-        f = push_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(julia_setproperty, 3))
+        f = new_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(julia_setproperty, 3))
         t.__newindex = wrapper(f)
 
-        f = push_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(string, 1))
+        f = new_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(string, 1))
         t.__str = wrapper(f)
     end
 end
@@ -219,6 +219,12 @@ end
 
 get_julia(x) = x
 
+"""
+    get_julia(ud::LuaUserData)
+
+Try to identify and convert a Lua userdata value to its Julia value.
+Return `ud` if failed.
+"""
 function get_julia(ud::LuaUserData)
     t = luaL_getmetafield(LS(ud), idx(ud), JULIA_IDENTITY)
     t == LUA_TNIL && return ud

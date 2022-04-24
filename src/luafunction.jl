@@ -33,21 +33,21 @@ end
 
 
 """
-    push_cfunction!(LS::LuaState, f::Ptr{Cvoid}, upvalues...)
+    new_cfunction!(LS::LuaState, f::Ptr{Cvoid}, upvalues...)
 
 Push a C function to the Lua stack and return it. 
 You may optionally associate upvalues with it, which can be accessed 
 in the function with pseudo-index `lua_upvalueindex`.
 """
-function push_cfunction!(LS::LuaState, f::Ptr{Cvoid}, upvalues...)
+function new_cfunction!(LS::LuaState, f::Ptr{Cvoid}, upvalues...)
     checkstack(LS, length(upvalues) + 1)
     @inbounds push!(LS, upvalues...)
     lua_pushcclosure(LS, f, length(upvalues))
     PopStack(getstack(LS, -1, LuaFunction), LS, 1)
 end
 
-struct MultipleReturn{T}
-    ret::T
+struct MultipleReturn
+    ret::Any
 end
 
 """
