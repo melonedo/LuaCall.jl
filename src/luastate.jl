@@ -1,19 +1,25 @@
 
+function LuaStateWrapper(L::Ptr, debug=true)
+    return LuaStateWrapper(L, debug, [])
+end
 
-function LuaStateWraper(julia_module::Union{Nothing,Module})
-    LS = LuaStateWraper(C_NULL)
+"""
+    LuaState(julia_module=Main, debug=true)
+
+Create a new Lua state, with `julia_module` set to Lua global varaible `julia`
+or not set if `nothing` is passed.
+
+If `debug` is true, stacktrace will be stored for every exception.
+"""
+function LuaStateWrapper(julia_module::Union{Nothing,Module}, debug=true)
+    LS = LuaStateWrapper(C_NULL, debug, [])
     init(LS; julia_module)
     LS
 end
 
 
-"""
-    LuaState(julia_module=Main)
 
-Create a new Lua state, with `julia_module` set to Lua global varaible `julia`
-or not set if `nothing` is passed.
-"""
-LuaState(julia_module=Main) = LuaStateWraper(julia_module)
+LuaState(julia_module=Main, debug=true) = LuaStateWrapper(julia_module, debug)
 
 
 "Push values to the stack. This function also calls `lua_checkstack` as `@boundscheck`."
@@ -77,7 +83,27 @@ function set_metatable!(obj::Union{LuaTable,LuaUserData}, table::LuaTable)
     lua_setmetatable(LS(obj), idx(obj))
 end
 
-function init(LS::LuaStateWraper; julia_module=Main)
+const LUA_STATE_JULIA_WRAPPER = "lua_state_julia_wrapper"
+
+function get_julia_wrapper(L::Ptr{lua_State})
+    @luascope L begin
+        LS = registry(L)[LUA_STATE_JULIA_WRAPPER]
+        @assert !isnothing(LS)
+        get_julia(LS)
+    end
+end
+
+get_julia_wrapper(LS::LuaStateWrapper) = LS
+
+debug(LS::LuaStateWrapper) = getfield(LS, :debug)
+
+debug(LS::LuaState, enable::Bool) = setfield!(LS, :debug, enable)
+
+get_stacktrace(LS::LuaStateWrapper) = getfield(LS, :stacktrace)
+
+set_stacktrace!(LS::LuaStateWrapper, stacktrace) = setfield!(LS, :stacktrace, stacktrace)
+
+function init(LS::LuaStateWrapper; julia_module=Main)
     L = luaL_newstate()
     L == C_NULL && error("Failed to initialize Lua")
     setfield!(LS, :L, L)
@@ -87,7 +113,7 @@ function init(LS::LuaStateWraper; julia_module=Main)
     init_julia_value_metatable(LS)
     init_julia_module_metatable(LS)
     @luascope LS begin
-        mod = pushstack!(LS, julia_module)
-        set_global!(LS, "julia", mod)
+        set_global!(LS, "julia", julia_module)
+        registry(LS)[LUA_STATE_JULIA_WRAPPER] = LS
     end
 end

@@ -6,22 +6,22 @@ using Test
         A = [2 1; 8 9]
 
         B1 = inv(A)
-        lua_inv = luaeval("return julia.inv(...)")
+        lua_inv = lualoadstring("return julia.inv(...)")
         B2 = lua_inv(A)
         @test B1 == get_julia(B2)
 
         C1 = A + A
-        lua_add = luaeval("local A = ...; return A + A")
+        lua_add = lualoadstring("local A = ...; return A + A")
         C2 = lua_add(A)
         @test C1 == get_julia(C2)
 
         D1 = A^2
-        lua_square = luaeval("local A = ...; return A ^ 2")
+        lua_square = lualoadstring("local A = ...; return A ^ 2")
         D2 = lua_square(A)
         @test D1 == get_julia(D2)
 
         E1 = A[3]
-        lua_index = luaeval("local A, i = ...; return A[i]")
+        lua_index = lualoadstring("local A, i = ...; return A[i]")
         E2 = lua_index(A, 3)
         @test E1 == get_julia(E2)
 
@@ -31,7 +31,7 @@ using Test
             keysum1 += k
             valsum1 += v
         end
-        lua_iter = luaeval("""
+        lua_iter = lualoadstring("""
             local A = ...
             local keysum, valsum = 0, 0
             for _, value in pairs(julia.pairs(A)) do
@@ -84,7 +84,7 @@ end
         set_metatable!(obj, mt)
         mt1 = get_metatable(obj)
         @test mt1 == mt
-        f = luaeval("return tostring(getmetatable(...).__name)")
+        f = lualoadstring("return tostring(getmetatable(...).__name)")
         name = f(obj)
         @test name == "hello"
     end
@@ -122,29 +122,13 @@ end
     pop!(LUA_STATE, 1)
 end
 
-@testset "globals" begin
-    LS = LuaState()
-    @luascope LS begin
-        main = LS.julia
-        @test get_julia(main) == Main
-
-        LS.foo = "bar"
-        field1 = LS.foo
-        @test get_julia(field1) == "bar"
-        
-        gt = get_globaltable(LS)
-        field2 = gt.foo
-        @test field2 == "bar"
-    end
-end
-
 @testset "LuaFunction" begin
     @luascope LUA_STATE begin
-        f = new_cfunction!(LUA_STATE, LuaCall.@lua_CFunction LuaCall.LuaFunctionWrapper(+,2))
+        f = new_cfunction!(LUA_STATE, LuaCall.@lua_CFunction LuaCall.LuaFunctionWrapper(+, 2))
         @test iscfunction(f)
         status, x = f(1, 2; multiret=true)
         @test status == 0 && x == 3
-        f = luaeval("return 1")
+        f = lualoadstring("return 1")
         @test !iscfunction(f)
     end
 end
@@ -169,13 +153,61 @@ end
     end
 end
 
+@testset "Errors" begin
+    @luascope LUA_STATE begin
+        f = lualoadfile(joinpath(@__DIR__, "test.lua"))
+        f()
+        @test_throws LuaCall.LuaError luacall(:add, 1, "str")
+        try
+            LuaCall.debug(LUA_STATE, true)
+            luacall(:add, [], [1])
+        catch e
+            @test e isa LuaCall.LuaError
+            @test !isempty(e.stacktrace)
+            @test occursin("test.lua", sprint(showerror, e))
+        end
+        try
+            LuaCall.debug(LUA_STATE, false)
+            luacall(:add, [], [1])
+        catch e
+            @test e isa LuaCall.LuaError
+            @test isempty(e.stacktrace)
+        end
+    end
+end
+
 @testset "GC" begin
     @luascope LUA_STATE begin
         luacall(:collectgarbage, "collect")
-        f = luaeval("local x; for _, v in pairs(...) do x = julia.Base end")
+        f = lualoadstring("local x; for _, v in pairs(...) do x = julia.Base end")
         f(1:100)
+        LUA_STATE.julia = nothing
+        registry(LUA_STATE)[LuaCall.LUA_STATE_JULIA_WRAPPER] = nothing
         luacall(:collectgarbage, "collect")
     end
-    @test LuaCall.check_gc_root() == 1
+    @show LuaCall.GC_ROOT
+    @test LuaCall.check_gc_root() == 0
     @test LUA_STATE |> top == 0
+end
+
+@testset "globals" begin
+    LS = LuaState()
+    @luascope LS begin
+        main = LS.julia
+        @test get_julia(main) == Main
+
+        LS.foo = "bar"
+        field1 = LS.foo
+        @test get_julia(field1) == "bar"
+
+        gt = get_globaltable(LS)
+        field2 = gt.foo
+        @test field2 == "bar"
+
+        LS.julia = nothing
+        LS.foo = nothing
+
+        @test length(gt) == 0
+    end
+    @test LS |> top == 0
 end

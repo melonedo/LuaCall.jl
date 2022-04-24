@@ -121,3 +121,7 @@ function Base.foreach(f, t::LuaIterable)
         pop!(LS(t), 1)
     end
 end
+
+function Base.length(t::Union{LuaTable,LuaUserData})
+    lua_rawlen(LS(t), idx(t))
+end

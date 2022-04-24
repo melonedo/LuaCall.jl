@@ -121,7 +121,7 @@ function init_julia_value_metatable(LS::LuaState)
         f = new_cfunction!(LS, @lua_CFunction lua_gc)
         t["__gc"] = f
 
-        wrapper = luaeval(LS, get_julia_function_wrapper(1))
+        wrapper = lualoadstring(LS, get_julia_function_wrapper(1))
         @mirror_method __add (+)
         @mirror_method __sub (-)
         @mirror_method __mul (*)
@@ -152,11 +152,11 @@ function init_julia_value_metatable(LS::LuaState)
                 return iter, self --, nil, nil
             end
             """
-        pairs_wrapper = luaeval(LS, pairs_wrapper_code)
+        pairs_wrapper = lualoadstring(LS, pairs_wrapper_code)
         f = new_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(pairs, 1))
         julia_pairs = wrapper(f)
 
-        wrapper3 = luaeval(LS, get_julia_function_wrapper(3))
+        wrapper3 = lualoadstring(LS, get_julia_function_wrapper(3))
         f = new_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(lua_iterate, 2))
         julia_next = wrapper3(f)
 
@@ -180,7 +180,7 @@ function init_julia_module_metatable(LS::LuaState)
         t[JULIA_IDENTITY] = JULIA_IDENTITY_MODULE
         t["__gc"] = new_cfunction!(LS, @lua_CFunction lua_gc)
 
-        wrapper = luaeval(LS, get_julia_function_wrapper(1))
+        wrapper = lualoadstring(LS, get_julia_function_wrapper(1))
 
         f = new_cfunction!(LS, @lua_CFunction LuaFunctionWrapper(julia_getproperty, 2))
         t.__index = wrapper(f)

@@ -4,12 +4,12 @@ include("../lib/LibLua.jl")
 
 using .LibLua
 
-export luaeval, luacall, LUA_STATE, top, @luascope, @luareturn
+export lualoadstring, luacall, LUA_STATE, top, @luascope, @luareturn
 export LuaState, LuaTable, LuaUserData, LuaThread, LuaFunction
 export get_julia, new_table!, get_uservalue, set_uservalue!
 export new_userdata!, set_metatable!, get_metatable, pushstack!, getstack
 export get_global, set_global!, get_globaltable, new_cfunction!
-export iscfunction, get_mainthread
+export iscfunction, get_mainthread, lualoadfile, registry
 
 include("types.jl")
 include("luascope.jl")
@@ -24,7 +24,7 @@ include("juliavalue.jl")
 
 
 """
-    luaeval([LS::LuaState,] str)
+    lualoadstring([LS::LuaState,] str)
 
 Evaluate the given Lua code, return the resulting function.
 
@@ -34,19 +34,32 @@ you can pass arguments and get return values accordingly.
 Example:
 ```julia
 @luascope LS begin
-    f = luaeval(LS, s)
+    f = lualoadstring(LS, s)
     ret = f(args...; multiret=true)
     @luareturn ret...
 end
 ```
 """
-function luaeval(LS::LuaState, str)
+function lualoadstring(LS::LuaState, str)
     rc = luaL_loadstring(LS, str)
     rc == LUA_OK || throw(LuaError(LS))
-    PopStack(getstack(LS, -1, LuaFunction), LS, 1)
+    PopStack(LuaFunction(LS, -1), LS, 1)
 end
 
-luaeval(str) = luaeval(LUA_STATE, str)
+lualoadstring(str) = lualoadstring(LUA_STATE, str)
+
+"""
+    lualoadfile(LS::LuaState, filename, mode="bt")
+
+Load a Lua script, return the parsed chunk.
+"""
+function lualoadfile(LS::LuaState, filename, mode="bt")
+    rc = luaL_loadfilex(LS, filename, mode)
+    rc == LUA_OK || throw(LuaError(LS))
+    PopStack(LuaFunction(LS, -1), LS, -1)
+end
+
+lualoadfile(filename, mode="bt") = lualoadfile(LUA_STATE, filename, mode)
 
 
 function luacall(LS::LuaState, f::Symbol, args...)
@@ -58,7 +71,7 @@ end
 luacall(f::Symbol, args...) = luacall(LUA_STATE, f, args...)
 
 
-const LUA_STATE = LuaStateWraper(C_NULL)
+const LUA_STATE = LuaStateWrapper(C_NULL)
 
 function __init__()
     init(LUA_STATE)

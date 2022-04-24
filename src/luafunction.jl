@@ -84,6 +84,7 @@ function (::LuaFunctionWrapper{func,narg})(LS::Ptr{lua_State})::Cint where {func
             return 2
         end
     catch e
+        store_stacktrace(LS)
         @debug "Error occurred when Lua calls Julia function `$func`" exception = (e, catch_backtrace())
         # `lua_error` is implemented as longjmp that jump out of this @cfunction
         # which is not allowed. So we simply return nothing and store the error
@@ -119,7 +120,7 @@ function get_julia_function_wrapper(nret=1)
         if status == 0 then
             return $rets
         elseif status == 1 then
-            error(ret1)
+            error(ret1, 0)
         elseif status == 2 then
             arg = coroutine.yield($rets)
             -- Lua implements proper tail calls

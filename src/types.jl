@@ -16,21 +16,19 @@ const LuaFloat = let t = LUA_FLOAT_TYPE
     error("unknown Lua float type")
 end
 
-"""
-    LuaStateLuaStateWraper
 
-Julia wrapper for `Ptr{lua_State}`. See `LuaState` for usage.
-"""
-mutable struct LuaStateWraper
+mutable struct LuaStateWrapper
     L::Ptr{lua_State}
+    debug::Bool
+    stacktrace::Vector{Any}
 end
 
-Base.unsafe_convert(::Type{Ptr{lua_State}}, LS::LuaStateWraper) = getfield(LS, :L)
+Base.unsafe_convert(::Type{Ptr{lua_State}}, LS::LuaStateWrapper) = getfield(LS, :L)
 
 """
     LuaState
 
-Julia interface for `lua_State` (or `LuaStateWraper`). Supports access to the Lua stack and Lua global variabls.
+Julia interface for `lua_State` (or `LuaStateWrapper`). Supports access to the Lua stack and Lua global variabls.
 
 Low-level stack interface:
 - `pop!(LS, n)`: pop `n` elements from the Lua stack.
@@ -43,15 +41,16 @@ negative `idx` if count from the top(-1). This function does not mutate any Lua 
 - `push!(LS, args...)`: push `args...` to the Lua stack.
 
 Global variable interface:
-- `LS.var` or `getglobal(LS, :var)`: push global variable `var` to the Lua stack.
-- `LS.var = x` or `setgloabl(LS, :var, x)`: set global variable `var` to `x`.
+- `LS.var` or `get_global(LS, :var)`: push global variable `var` to the Lua stack.
+- `LS.var = x` or `set_gloabl!(LS, :var, x)`: set global variable `var` to `x`.
 """
-const LuaState = Union{Ptr{lua_State},LuaStateWraper}
+const LuaState = Union{Ptr{lua_State},LuaStateWrapper}
 
 
 
 struct LuaError <: Exception
     msg::String
+    stacktrace::Vector{Any}
 end
 
 
@@ -110,10 +109,5 @@ end
 
 function Base.:(==)(obj1::OnLuaStack, obj2::OnLuaStack)
     LS(obj1) == LS(obj2) || return false
-    lua_compare(LS(obj1), idx(obj1), idx(obj2), LUA_OPEQ) |> !iszero
-end
-
-function Base.isless(obj1::OnLuaStack, obj2::OnLuaStack)
-    LS(obj1) == LS(obj2) || return false
-    lua_compare(LS(obj1), idx(obj1), idx(obj2), LUA_OPLT) |> !iszero
+    lua_rawequal(LS(obj1), idx(obj1), idx(obj2)) |> !iszero
 end
