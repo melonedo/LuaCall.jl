@@ -6,26 +6,34 @@ const LuaCallable = Union{LuaFunction,LuaTable,LuaUserData}
 iscfunction(f::LuaFunction) = lua_iscfunction(LS(f), idx(f)) |> !iszero
 
 """
-    (f::LuaCallable)(args...; multiret=false)
+    (f::LuaCallable)(args...; multiret=false, stacktrace=nothing)
 
-Call the Lua function. By default only the first return value is used,
+Call the Lua function. 
+    
+By default only the first return value is used,
 pass `multiret=true` to collect all return values.
+
+If `stacktrace` is not `nothing`, specify stacktrace to be collected
+or not in case of error for the current call. Otherwise the setting on
+the Lua state wrapper will be used.
 """
-function (F::LuaCallable)(args...; multiret=false)
-    call(F, args...; multiret)
+function (F::LuaCallable)(args...; multiret=false, stacktrace=nothing)
+    call(F, args...; multiret, stacktrace)
 end
 
-function call(F::LuaCallable, args...; multiret=false)
+function call(F::LuaCallable, args...; multiret=false, stacktrace=nothing)
     push!(LS(F), F)
-    pcall(LS(F), args...; multiret)
+    pcall(LS(F), args...; multiret, stacktrace)
 end
 
 "Pop and call the function at the top of the stack with `args`."
-function pcall(LS::LuaState, args...; multiret=false)
+function pcall(LS::LuaState, args...; multiret=false, stacktrace::Union{Nothing,Bool}=nothing)
     @assert lua_isfunction(LS, -1)
     old_top = top(LS) - 1
     push!(LS, args...)
+    isnothing(stacktrace) || (old_debug = set_debug!(LS, stacktrace))
     rc = lua_pcall(LS, length(args), multiret ? -1 : 1, 0)
+    isnothing(stacktrace) || set_debug!(LS, old_debug)
     rc == LUA_OK || throw(LuaError(LS))
     nret = top(LS) - old_top
     PopStack(multiret ? [LS[i] for i in -nret:-1] : LS[], LS, nret)

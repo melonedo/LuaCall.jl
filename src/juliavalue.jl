@@ -103,7 +103,7 @@ lua_concat(x, y) = error("Lua concat operator `..` is not defined for $(typeof(x
 
 
 # @luacall does not work behind macros
-macro mirror_method(lua_name, julia_name, nargs=1)
+macro mirror_method(lua_name, julia_name, nargs=2)
     esc(quote
         f = new_cfunction!(LS, @lua_CFunction LuaFunctionWrapper($julia_name, $nargs)) |> unwrap_popstack
         t[$(string(lua_name))] = wrapper(f) |> unwrap_popstack

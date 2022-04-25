@@ -133,6 +133,30 @@ end
     end
 end
 
+@testset "globals" begin
+    LS = LuaState()
+    @luascope LS begin
+        main = LS.julia
+        @test get_julia(main) == Main
+
+        LS.foo = "bar"
+        field1 = LS.foo
+        @test get_julia(field1) == "bar"
+
+        gt = get_globaltable(LS)
+        field2 = gt.foo
+        @test field2 == "bar"
+
+        LS.julia = nothing
+        LS.foo = nothing
+
+        @test length(gt) == 0
+
+
+    end
+    @test LS |> top == 0
+end
+
 @testset "@luascope" begin
     @luascope LUA_STATE begin
         t, num = @luascope LUA_STATE begin
@@ -159,7 +183,7 @@ end
         f()
         @test_throws LuaCall.LuaError luacall(:add, 1, "str")
         try
-            LuaCall.debug(LUA_STATE, true)
+            LuaCall.set_debug!(LUA_STATE, true)
             luacall(:add, [], [1])
         catch e
             @test e isa LuaCall.LuaError
@@ -167,8 +191,15 @@ end
             @test occursin("test.lua", sprint(showerror, e))
         end
         try
-            LuaCall.debug(LUA_STATE, false)
+            LuaCall.set_debug!(LUA_STATE, false)
             luacall(:add, [], [1])
+        catch e
+            @test e isa LuaCall.LuaError
+            @test isempty(e.stacktrace)
+        end
+        try
+            LuaCall.set_debug!(LUA_STATE, false)
+            luacall(:add, [], [1]; stacktrace=true)
         catch e
             @test e isa LuaCall.LuaError
             @test isempty(e.stacktrace)
@@ -177,37 +208,16 @@ end
 end
 
 @testset "GC" begin
-    @luascope LUA_STATE begin
-        luacall(:collectgarbage, "collect")
-        f = lualoadstring("local x; for _, v in pairs(...) do x = julia.Base end")
-        f(1:100)
-        LUA_STATE.julia = nothing
-        registry(LUA_STATE)[LuaCall.LUA_STATE_JULIA_WRAPPER] = nothing
-        luacall(:collectgarbage, "collect")
-    end
-    @show LuaCall.GC_ROOT
-    @test LuaCall.check_gc_root() == 0
-    @test LUA_STATE |> top == 0
-end
-
-@testset "globals" begin
-    LS = LuaState()
+    old_roots = LuaCall.check_gc_root()
+    LS = LuaState(Main, false)
     @luascope LS begin
-        main = LS.julia
-        @test get_julia(main) == Main
-
-        LS.foo = "bar"
-        field1 = LS.foo
-        @test get_julia(field1) == "bar"
-
-        gt = get_globaltable(LS)
-        field2 = gt.foo
-        @test field2 == "bar"
-
+        luacall(LS, :collectgarbage, "collect")
+        f = lualoadstring(LS, "local x; for _, v in pairs(...) do x = julia.Base end")
+        f(1:100)
         LS.julia = nothing
-        LS.foo = nothing
-
-        @test length(gt) == 0
+        registry(LS)[LuaCall.LUA_STATE_JULIA_WRAPPER] = nothing
+        luacall(LS, :collectgarbage, "collect")
     end
+    @test LuaCall.check_gc_root() - old_roots== 0
     @test LS |> top == 0
 end

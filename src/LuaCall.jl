@@ -62,13 +62,13 @@ end
 lualoadfile(filename, mode="bt") = lualoadfile(LUA_STATE, filename, mode)
 
 
-function luacall(LS::LuaState, f::Symbol, args...)
+function luacall(LS::LuaState, f::Symbol, args...; ka...)
     g = get_global(LS, f) |> unwrap_popstack
     @assert g isa LuaCallable
-    g(args...)
+    g(args...; ka...)
 end
 
-luacall(f::Symbol, args...) = luacall(LUA_STATE, f, args...)
+luacall(f::Symbol, args...; ka...) = luacall(LUA_STATE, f, args..., ka...)
 
 
 const LUA_STATE = LuaStateWrapper(C_NULL)

@@ -98,7 +98,7 @@ end
 
 @noinline function store_stacktrace(LS::LuaState)
     LS = get_julia_wrapper(LS)
-    debug(LS) || return
+    get_debug(LS) || return
     julia_stack = get_julia_stacktrace(5)
     lua_stack = get_lua_stacktrace(LS)
     set_stacktrace!(LS, [julia_stack; lua_stack])

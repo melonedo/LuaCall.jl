@@ -10,6 +10,7 @@ Create a new Lua state, with `julia_module` set to Lua global varaible `julia`
 or not set if `nothing` is passed.
 
 If `debug` is true, stacktrace will be stored for every exception.
+You can also set debug on a per-call basis.
 """
 function LuaStateWrapper(julia_module::Union{Nothing,Module}, debug=true)
     LS = LuaStateWrapper(C_NULL, debug, [])
@@ -19,7 +20,7 @@ end
 
 
 
-LuaState(julia_module=Main, debug=true) = LuaStateWrapper(julia_module, debug)
+LuaState(julia_module::Union{Nothing,Module}=Main, debug=true) = LuaStateWrapper(julia_module, debug)
 
 
 "Push values to the stack. This function also calls `lua_checkstack` as `@boundscheck`."
@@ -95,13 +96,21 @@ end
 
 get_julia_wrapper(LS::LuaStateWrapper) = LS
 
-debug(LS::LuaStateWrapper) = getfield(LS, :debug)
+get_debug(LS::LuaStateWrapper) = getfield(LS, :debug)
 
-debug(LS::LuaState, enable::Bool) = setfield!(LS, :debug, enable)
+function set_debug!(LS::LuaStateWrapper, enable::Bool)
+    old_debug = get_debug(LS)
+    setfield!(LS, :debug, enable)
+    old_debug
+end
 
 get_stacktrace(LS::LuaStateWrapper) = getfield(LS, :stacktrace)
 
 set_stacktrace!(LS::LuaStateWrapper, stacktrace) = setfield!(LS, :stacktrace, stacktrace)
+
+for func in [:get_debug, :set_debug!, :get_stacktrace, :set_stacktrace!]
+    @eval $func(L::Ptr{lua_State}, args...) = $func(get_julia_wrapper(L), args...)
+end
 
 function init(LS::LuaStateWrapper; julia_module=Main)
     L = luaL_newstate()

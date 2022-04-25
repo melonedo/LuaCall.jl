@@ -16,7 +16,7 @@ function luareturn_impl(LS::LuaState, old_base, vars...)
     new_base[], moved
 end
 
-function luascope_impl(__module__, LS_expr, code::Expr)
+function luascope_impl(LS_expr, code::Expr)
     @assert code.head == :block
     LS = gensym(:LS)
     base = gensym(:base)
@@ -34,7 +34,7 @@ function luascope_impl(__module__, LS_expr, code::Expr)
             vars = expr.args[3:end]
             nvars = length(vars)
             ret = gensym(:ret)
-            ret_expr = nvars == 1 ? ret : Expr(:tuple, (:($ret[$i]) for i in 1:nvars)...)
+            ret_expr = nvars == 1 ? :($ret[]) : ret
             push!(body, quote
                 $base, $ret = $luareturn_impl($LS, $base, $(vars...))
                 $PopStack($ret_expr, $LS, $nvars)
@@ -79,7 +79,7 @@ If you want to return Lua values, call `@luareturn` at the end of the block.
     This macro does not free Lua stack inside the block, so a loop that repetitively pushes Lua value may run out of stack space.
 """
 macro luascope(LS, code::Expr)
-    luascope_impl(__module__, LS, code)
+    luascope_impl(LS, code)
 end
 
 """
