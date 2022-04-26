@@ -16,14 +16,19 @@ const LuaFloat = let t = LUA_FLOAT_TYPE
     error("unknown Lua float type")
 end
 
+struct LuaThread
+    L::Ptr{lua_State}
+end
+
+Base.unsafe_convert(::Type{Ptr{lua_State}}, LS::LuaThread) = getfield(LS, :L)
 
 mutable struct LuaStateWrapper
-    L::Ptr{lua_State}
+    L::LuaThread
     debug::Bool
     stacktrace::Vector{Any}
 end
 
-Base.unsafe_convert(::Type{Ptr{lua_State}}, LS::LuaStateWrapper) = getfield(LS, :L)
+Base.unsafe_convert(::Type{Ptr{lua_State}}, LS::LuaStateWrapper) = Base.unsafe_convert(Ptr{lua_State}, getfield(LS, :L))
 
 """
     LuaState
@@ -44,9 +49,7 @@ Global variable interface:
 - `LS.var` or `get_global(LS, :var)`: push global variable `var` to the Lua stack.
 - `LS.var = x` or `set_gloabl!(LS, :var, x)`: set global variable `var` to `x`.
 """
-const LuaState = Union{Ptr{lua_State},LuaStateWrapper}
-
-
+const LuaState = Union{Ptr{lua_State},LuaStateWrapper,LuaThread}
 
 struct LuaError <: Exception
     msg::String
@@ -71,41 +74,37 @@ idx(x::OnLuaStack) = getfield(x, :idx)
 A data type to protect from passing Values on the Lua stack around carelessly.
 You should either take care to restore Lua stack, or use `@luascope`
 """
-struct PopStack{T}
+struct PopStack{T,StateT<:LuaState}
     data::T
-    LS::LuaState
+    LS::StateT
     npop::Cint
 end
 
-PopStack(data::T, LS, npop) where {T} = PopStack{T}(data, LS, npop)
+PopStack(data, LS, npop) = PopStack{typeof(data),typeof(LS)}(data, LS, npop)
 
 
-struct LuaFunction <: OnLuaStack
-    LS::LuaState
+struct LuaFunction{StateT<:LuaState} <: OnLuaStack
+    LS::StateT
     idx::Cint
-    LuaFunction(LS::LuaState, idx) = new(LS, lua_absindex(LS, idx))
+    LuaFunction{StateT}(LS::StateT, idx) where {StateT<:LuaState} = new{StateT}(LS, lua_absindex(LS, idx))
 end
+LuaFunction(LS::LuaState, idx) = LuaFunction{typeof(LS)}(LS, idx)
 
 
-struct LuaTable <: OnLuaStack
-    LS::LuaState
+struct LuaTable{StateT<:LuaState} <: OnLuaStack
+    LS::StateT
     idx::Cint
-    LuaTable(LS::LuaState, idx) = new(LS, lua_absindex(LS, idx))
+    LuaTable{StateT}(LS::StateT, idx) where {StateT<:LuaState} = new{StateT}(LS, lua_absindex(LS, idx))
 end
+LuaTable(LS::LuaState, idx) = LuaTable{typeof(LS)}(LS, idx)
 
 
-struct LuaThread <: OnLuaStack
-    LS::LuaState
+struct LuaUserData{StateT<:LuaState} <: OnLuaStack
+    LS::StateT
     idx::Cint
-    LuaThread(LS::LuaState, idx) = new(LS, lua_absindex(LS, idx))
+    LuaUserData{StateT}(LS::StateT, idx) where {StateT<:LuaState} = new{StateT}(LS, lua_absindex(LS, idx))
 end
-
-
-struct LuaUserData <: OnLuaStack
-    LS::LuaState
-    idx::Cint
-    LuaUserData(LS::LuaState, idx) = new(LS, lua_absindex(LS, idx))
-end
+LuaUserData(LS::LuaState, idx) = LuaUserData{typeof(LS)}(LS, idx)
 
 function Base.:(==)(obj1::OnLuaStack, obj2::OnLuaStack)
     LS(obj1) == LS(obj2) || return false

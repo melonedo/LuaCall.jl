@@ -1,6 +1,6 @@
 
 function LuaStateWrapper(L::Ptr, debug=true)
-    return LuaStateWrapper(L, debug, [])
+    return LuaStateWrapper(LuaThread(L), debug, [])
 end
 
 """
@@ -13,7 +13,7 @@ If `debug` is true, stacktrace will be stored for every exception.
 You can also set debug on a per-call basis.
 """
 function LuaStateWrapper(julia_module::Union{Nothing,Module}, debug=true)
-    LS = LuaStateWrapper(C_NULL, debug, [])
+    LS = LuaStateWrapper(LuaThread(C_NULL), debug, [])
     init(LS; julia_module)
     LS
 end
@@ -58,9 +58,14 @@ function get_globaltable(LS::LuaState)
     registry(LS)[LUA_RIDX_GLOBALS]
 end
 
-function get_mainthread(LS::LuaState)
-    registry(LS)[LUA_RIDX_MAINTHREAD]
+function mainthread(LS::LuaState)
+    @luascope LS begin
+        t::LuaThread = registry(LS)[LUA_RIDX_MAINTHREAD]
+        t
+    end
 end
+
+mainthread(LS::LuaStateWrapper) = getfield(LS, :L)
 
 """
     registry(LS::LuaState)
@@ -84,15 +89,22 @@ function set_metatable!(obj::Union{LuaTable,LuaUserData}, table::LuaTable)
     lua_setmetatable(LS(obj), idx(obj))
 end
 
-const LUA_STATE_JULIA_WRAPPER = "lua_state_julia_wrapper"
+function lua_getextraspace(L::LuaState)
+    L = Base.unsafe_convert(Ptr{lua_State}, L)
+    Ptr{Cvoid}(L - sizeof(Ptr{Cvoid}))
+end
+
+function set_julia_wrapper!(LS::LuaStateWrapper)
+    space = lua_getextraspace(LS)
+    unsafe_store!(Ptr{Any}(space), LS)
+end
 
 function get_julia_wrapper(L::Ptr{lua_State})
-    @luascope L begin
-        LS = registry(L)[LUA_STATE_JULIA_WRAPPER]
-        @assert !isnothing(LS)
-        get_julia(LS)
-    end
+    space = lua_getextraspace(L)
+    unsafe_load(Ptr{Any}(space))::LuaStateWrapper
 end
+
+get_julia_wrapper(LS::LuaThread) = get_julia_wrapper(Base.unsafe_convert(Ptr{lua_State}, LS))
 
 get_julia_wrapper(LS::LuaStateWrapper) = LS
 
@@ -109,20 +121,25 @@ get_stacktrace(LS::LuaStateWrapper) = getfield(LS, :stacktrace)
 set_stacktrace!(LS::LuaStateWrapper, stacktrace) = setfield!(LS, :stacktrace, stacktrace)
 
 for func in [:get_debug, :set_debug!, :get_stacktrace, :set_stacktrace!]
-    @eval $func(L::Ptr{lua_State}, args...) = $func(get_julia_wrapper(L), args...)
+    @eval $func(L::LuaState, args...) = $func(get_julia_wrapper(L), args...)
+end
+
+function Base.close(LS::LuaStateWrapper)
+    lua_close(LS)
+    setfield!(LS, :L, LuaThread(C_NULL))
 end
 
 function init(LS::LuaStateWrapper; julia_module=Main)
     L = luaL_newstate()
     L == C_NULL && error("Failed to initialize Lua")
-    setfield!(LS, :L, L)
-    luaL_openlibs(LS)
-    finalizer(lua_close, LS)
+    setfield!(LS, :L, LuaThread(L))
+    set_julia_wrapper!(LS)
+    finalizer(close, LS)
 
+    luaL_openlibs(LS)
     init_julia_value_metatable(LS)
     init_julia_module_metatable(LS)
     @luascope LS begin
         set_global!(LS, "julia", julia_module)
-        registry(LS)[LUA_STATE_JULIA_WRAPPER] = LS
     end
 end

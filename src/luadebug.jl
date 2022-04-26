@@ -22,18 +22,18 @@ function Base.showerror(io::IO, ex::LuaError)
 end
 
 @noinline function get_julia_stacktrace(offset)
-    last_frame = stacktrace()[offset]
+    anchor_frame = stacktrace()[offset]
     full_julia_stack = catch_backtrace()
-    last = findfirst(full_julia_stack) do x
+    anchor = findfirst(full_julia_stack) do x
         for f in StackTraces.lookup(x)
-            f == last_frame && return true
+            f == anchor_frame && return true
         end
         false
     end
-    if isnothing(last)
+    if isnothing(anchor)
         StackTraces.StackTrace()
     else
-        julia_stack = full_julia_stack[1:last-1]
+        julia_stack = full_julia_stack[1:anchor-1]
         stacktrace(julia_stack)
     end
 end
@@ -74,7 +74,7 @@ function get_lua_stacktrace(LS::LuaState)
         level += 1
         lua_getinfo(LS, "nSlut", info)
         name_ptr = info[].name
-        name = name_ptr == C_NULL ? "" : unsafe_string(name_ptr)
+        name = name_ptr == C_NULL ? "(anonymous)" : unsafe_string(name_ptr)
         namewhat = unsafe_string(info[].namewhat)
         what = unsafe_string(info[].what)
         buf = collect(mod.(info[].short_src, UInt8))
@@ -97,9 +97,10 @@ function get_lua_stacktrace(LS::LuaState)
 end
 
 @noinline function store_stacktrace(LS::LuaState)
-    LS = get_julia_wrapper(LS)
-    get_debug(LS) || return
+    # We may be unwinding a stack from a coroutine
+    wrapper = get_julia_wrapper(LS)
+    get_debug(wrapper) || return
     julia_stack = get_julia_stacktrace(5)
     lua_stack = get_lua_stacktrace(LS)
-    set_stacktrace!(LS, [julia_stack; lua_stack])
+    set_stacktrace!(wrapper, [julia_stack; lua_stack])
 end

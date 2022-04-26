@@ -9,7 +9,7 @@ export LuaState, LuaTable, LuaUserData, LuaThread, LuaFunction
 export get_julia, new_table!, get_uservalue, set_uservalue!
 export new_userdata!, set_metatable!, get_metatable, pushstack!, getstack
 export get_global, set_global!, get_globaltable, new_cfunction!
-export iscfunction, get_mainthread, lualoadfile, registry
+export iscfunction, mainthread, lualoadfile, registry, status, resume
 
 include("types.jl")
 include("luascope.jl")

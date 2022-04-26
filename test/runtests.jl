@@ -133,6 +133,55 @@ end
     end
 end
 
+@testset "LuaThread" begin
+    LS = LuaState()
+    @luascope LS begin
+        main_thread1 = mainthread(LS)
+        main_thread2 = mainthread(main_thread1)
+        @test main_thread1 == main_thread2
+
+        code = lualoadstring(LS, """
+        return coroutine.create(function (a, b)
+            c, d = coroutine.yield(a + b)
+            return a + b - c - d
+        end)""")
+        thread = code()
+        main_thread3 = mainthread(thread)
+        @test main_thread3 == main_thread1
+
+        sum = resume(LS, thread, 1, 2)
+        @test status(thread) == LuaCall.LUA_YIELD
+        @test sum == 1 + 2
+        diff = resume(LS, thread, 3, 4)
+
+        @test status(thread) == LuaCall.LUA_OK
+        @test diff == 1 + 2 - 3 - 4
+
+        @test_throws LuaCall.LuaError resume(LS, thread)
+    end
+end
+
+@testset "Thread data exchange" begin
+    LS = LuaState()
+    @luascope LS begin
+        code = lualoadstring(LS, """
+            return coroutine.create(function (t, b)
+                coroutine.yield(t.a)
+                return b
+            end)""")
+        thread = code()
+        t = new_table!(LS, Dict(("a"=>1)))
+        b = [1,2,3]
+        @luascope thread begin
+            a = resume(LS, thread, t, b)
+            b2 = resume(LS, thread)
+            @test status(thread) == LuaCall.LUA_OK
+            @test a == 1
+            @test b == get_julia(b2)
+        end
+    end
+end
+
 @testset "globals" begin
     LS = LuaState()
     @luascope LS begin
@@ -151,8 +200,6 @@ end
         LS.foo = nothing
 
         @test length(gt) == 0
-
-
     end
     @test LS |> top == 0
 end
@@ -215,7 +262,6 @@ end
         f = lualoadstring(LS, "local x; for _, v in pairs(...) do x = julia.Base end")
         f(1:100)
         LS.julia = nothing
-        registry(LS)[LuaCall.LUA_STATE_JULIA_WRAPPER] = nothing
         luacall(LS, :collectgarbage, "collect")
     end
     @test LuaCall.check_gc_root() - old_roots== 0
