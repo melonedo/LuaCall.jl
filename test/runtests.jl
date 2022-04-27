@@ -232,13 +232,14 @@ end
 
 @testset "@luascope" begin
     @luascope LUA_STATE begin
-        t, num = @luascope LUA_STATE begin
+        t = @luascope LUA_STATE begin
             t = new_table!(LUA_STATE)
             t[1] = 2
-            @luareturn t 1234
+            @luareturn t
         end
         v = t[1]
         @test v == 2
+        
         t, num = @luascope LUA_STATE begin
             t = new_table!(LUA_STATE)
             t[1] = 2

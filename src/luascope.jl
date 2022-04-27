@@ -34,7 +34,7 @@ function luascope_impl(LS_expr, code::Expr)
             vars = expr.args[3:end]
             nvars = length(vars)
             ret = gensym(:ret)
-            ret_expr = nvars == 1 ? :($ret[]) : ret
+            ret_expr = nvars == 1 ? :(only($ret)) : ret
             push!(body, quote
                 $base, $ret = $luareturn_impl($LS, $base, $(vars...))
                 $PopStack($ret_expr, $LS, $nvars)

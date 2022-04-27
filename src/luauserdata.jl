@@ -14,6 +14,11 @@ function set_uservalue!(UD::LuaUserData, i, v)
     lua_setiuservalue(LS(UD), idx(UD), i)
 end
 
+"""
+    new_userdata!(LS::LuaState, size, nuservalue=0)
+
+Create a userdata with given number of bytes and given number of uservalue.
+"""
 function new_userdata!(LS::LuaState, size, nuservalue=0)
     lua_newuserdatauv(LS, size, nuservalue)
     UD = LuaUserData(LS, -1)

@@ -1,4 +1,10 @@
+"""
+    new_thread!(LS::LuaState, main::Union{LuaCallable,Nothing}=nothing)
 
+Create a Lua thread(coroutine). 
+The main function must be pushed before resuming, call `start` if you 
+did not set `main` on invokation.
+"""
 function new_thread!(LS::LuaState, main::Union{LuaCallable,Nothing}=nothing)
     t = LuaThread(lua_newthread(LS))
     isnothing(main) || start(t, main)

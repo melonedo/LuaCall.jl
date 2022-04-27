@@ -16,7 +16,15 @@ const LuaFloat = let t = LUA_FLOAT_TYPE
     error("unknown Lua float type")
 end
 
-struct LuaThread
+
+"""
+    OnStackType
+
+Values of this type are valid only for the current Lua stack frame. For safety, they are always wrapped in a `PopStack` wrapper.
+"""
+abstract type OnLuaStack end
+
+struct LuaThread <: OnLuaStack
     L::Ptr{lua_State}
 end
 
@@ -57,12 +65,6 @@ struct LuaError <: Exception
 end
 
 
-"""
-    OnStackType
-
-Values of this type are valid only for the current Lua stack frame. For safety, they are always wrapped in a `PopStack` wrapper.
-"""
-abstract type OnLuaStack end
 
 LS(x::OnLuaStack) = getfield(x, :LS)
 idx(x::OnLuaStack) = getfield(x, :idx)
@@ -109,4 +111,8 @@ LuaUserData(LS::LuaState, idx) = LuaUserData{typeof(LS)}(LS, idx)
 function Base.:(==)(obj1::OnLuaStack, obj2::OnLuaStack)
     LS(obj1) == LS(obj2) || return false
     lua_rawequal(LS(obj1), idx(obj1), idx(obj2)) |> !iszero
+end
+
+function Base.:(==)(t1::LuaThread, t2::LuaThread)
+    t1 === t2
 end
