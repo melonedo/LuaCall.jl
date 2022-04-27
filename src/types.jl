@@ -86,7 +86,7 @@ PopStack(data, LS, npop) = PopStack{typeof(data),typeof(LS)}(data, LS, npop)
 struct LuaFunction{StateT<:LuaState} <: OnLuaStack
     LS::StateT
     idx::Cint
-    LuaFunction{StateT}(LS::StateT, idx) where {StateT<:LuaState} = new{StateT}(LS, lua_absindex(LS, idx))
+    LuaFunction{StateT}(LS::StateT, idx) where {StateT<:LuaState} = new{StateT}(LS, idx > 0 ? idx : lua_absindex(LS, idx))
 end
 LuaFunction(LS::LuaState, idx) = LuaFunction{typeof(LS)}(LS, idx)
 
@@ -94,7 +94,7 @@ LuaFunction(LS::LuaState, idx) = LuaFunction{typeof(LS)}(LS, idx)
 struct LuaTable{StateT<:LuaState} <: OnLuaStack
     LS::StateT
     idx::Cint
-    LuaTable{StateT}(LS::StateT, idx) where {StateT<:LuaState} = new{StateT}(LS, lua_absindex(LS, idx))
+    LuaTable{StateT}(LS::StateT, idx) where {StateT<:LuaState} = new{StateT}(LS, idx > 0 ? idx : lua_absindex(LS, idx))
 end
 LuaTable(LS::LuaState, idx) = LuaTable{typeof(LS)}(LS, idx)
 
@@ -102,7 +102,7 @@ LuaTable(LS::LuaState, idx) = LuaTable{typeof(LS)}(LS, idx)
 struct LuaUserData{StateT<:LuaState} <: OnLuaStack
     LS::StateT
     idx::Cint
-    LuaUserData{StateT}(LS::StateT, idx) where {StateT<:LuaState} = new{StateT}(LS, lua_absindex(LS, idx))
+    LuaUserData{StateT}(LS::StateT, idx) where {StateT<:LuaState} = new{StateT}(LS, idx > 0 ? idx : lua_absindex(LS, idx))
 end
 LuaUserData(LS::LuaState, idx) = LuaUserData{typeof(LS)}(LS, idx)
 

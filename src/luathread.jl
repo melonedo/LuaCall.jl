@@ -19,12 +19,10 @@ function resume(host::LuaState, guest::LuaThread, args...; multiret=false, stack
     isnothing(stacktrace) || (old_debug = set_debug!(host, stacktrace))
     status = lua_resume(guest, host, length(args), nresults)
     isnothing(stacktrace) || set_debug!(host, old_debug)
-    guest.status = status
     if status == LUA_OK || status == LUA_YIELD
         checkstack(host, nresults[])
         lua_xmove(guest, host, nresults[])
-        ret = multiret ? [host[i] for i in -nresults[]:-1] : host[]
-        PopStack(ret, host, nresults[])
+        return_on_lua_stack(host, multiret ? (-nresults[]:-1) : -1)
     else
         throw(LuaError(guest))
     end

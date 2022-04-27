@@ -46,7 +46,7 @@ Base.getindex(LS::LuaState, i=-1) = getstack(LS, i)
 function get_global(LS::LuaState, f)
     checkstack(LS, 1)
     lua_getglobal(LS, f)
-    PopStack(LS[], LS, 1)
+    return_on_lua_stack(LS, -1)
 end
 
 function set_global!(LS::LuaState, f, v)

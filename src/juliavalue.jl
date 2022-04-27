@@ -204,7 +204,7 @@ function push_julia_object!(LS::LuaState, obj)
     ptr = lua_newuserdatauv(LS, sizeof(Int), 0)
     unsafe_store_gc_index!(ptr, idx)
     luaL_setmetatable(LS, JULIA_METATABLE_OBJECT)
-    PopStack(LS[], LS, 1)
+    PopStack(LuaUserData(LS, -1), LS, 1)
 end
 
 function pushstack!(LS::LuaState, mod::Module)

@@ -36,7 +36,7 @@ function pcall(LS::LuaState, args...; multiret=false, stacktrace::Union{Nothing,
     isnothing(stacktrace) || set_debug!(LS, old_debug)
     rc == LUA_OK || throw(LuaError(LS))
     nret = top(LS) - old_top
-    PopStack(multiret ? [LS[i] for i in -nret:-1] : LS[], LS, nret)
+    return_on_lua_stack(LS, multiret ? (-nret:-1) : -1)
 end
 
 
@@ -51,7 +51,7 @@ function new_cfunction!(LS::LuaState, f::Ptr{Cvoid}, upvalues...)
     checkstack(LS, length(upvalues) + 1)
     @inbounds push!(LS, upvalues...)
     lua_pushcclosure(LS, f, length(upvalues))
-    PopStack(getstack(LS, -1, LuaFunction), LS, 1)
+    PopStack(LuaFunction(LS, -1), LS, 1)
 end
 
 struct MultipleReturn

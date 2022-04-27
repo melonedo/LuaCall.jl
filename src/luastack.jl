@@ -89,3 +89,17 @@ function pushstack!(to::LuaState, x::OnLuaStack)
         lua_xmove(LS(x), to, 1)
     end
 end
+
+function return_on_lua_stack(LS::LuaState, idx::Integer, typeind=lua_type(LS, idx))
+    x = getstack(LS, idx, typeind)
+    if x isa OnLuaStack
+        PopStack(x, LS, 1)
+    else
+        pop!(LS, 1)
+        PopStack(x, LS, 0)
+    end
+end
+
+function return_on_lua_stack(LS::LuaState, range::AbstractVector)
+    PopStack([getstack(LS, i) for i in range], LS, length(range))
+end

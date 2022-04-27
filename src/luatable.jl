@@ -4,17 +4,17 @@
 function Base.getindex(T::LuaTable, k)
     push!(LS(T), k)
     t = lua_gettable(LS(T), idx(T))
-    PopStack(getstack(LS(T), -1, t), LS(T), 1)
+    return_on_lua_stack(LS(T), -1, t)
 end
 
 function Base.getindex(T::LuaTable, k::AbstractString)
     t = lua_getfield(LS(T), idx(T), k)
-    PopStack(getstack(LS(T), -1, t), LS(T), 1)
+    return_on_lua_stack(LS(T), -1, t)
 end
 
 function Base.getindex(T::LuaTable, k::Integer)
     t = lua_geti(LS(T), idx(T), k)
-    PopStack(getstack(LS(T), -1, t), LS(T), 1)
+    return_on_lua_stack(LS(T), -1, t)
 end
 
 # Map property to index, what Lua `T.f` does
@@ -29,17 +29,17 @@ Get table data with raw access.
 function rawget(T::LuaTable, k)
     push!(LS(T), k)
     t = lua_rawget(LS(T), idx(T))
-    PopStack(getstack(LS(T), -1, t), LS(T), 1)
+    return_on_lua_stack(LS(T), -1, t)
 end
 
 function rawget(T::LuaTable, k::Integer)
     t = lua_rawgeti(LS(T), idx(T), k)
-    PopStack(getstack(LS(T), -1, t), LS(T), 1)
+    return_on_lua_stack(LS(T), -1, t)
 end
 
 function rawget(T::LuaTable, k::Ptr)
     t = lua_rawgetp(LS(T), idx(T), k)
-    PopStack(getstack(LS(T), -1, t), LS(T), 1)
+    return_on_lua_stack(LS(T), -1, t)
 end
 
 function Base.setindex!(T::LuaTable, v, k)

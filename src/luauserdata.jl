@@ -6,7 +6,7 @@ end
 
 function get_uservalue(UD::LuaUserData, i)
     t = lua_getiuservalue(LS(UD), idx(UD), i)
-    PopStack(getstack(LS(UD), -1, t), LS(UD), 1)
+    return_on_lua_stack(LS(UD), -1, t)
 end
 
 function set_uservalue!(UD::LuaUserData, i, v)
