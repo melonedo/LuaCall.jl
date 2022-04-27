@@ -137,3 +137,8 @@ function get_julia_function_wrapper(nret=1)
     end
     """
 end
+
+function kw(f, kw, args...)
+    kw = (Symbol(k) => v for (k,v) in kw)
+    f(args...; kw...)
+end

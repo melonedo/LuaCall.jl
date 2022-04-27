@@ -89,7 +89,7 @@ function get_lua_stacktrace(LS::LuaState)
             what,
             source,
             info[].currentline,
-            info[].istailcall,
+            istailcall = !iszero(info[].istailcall),
             params)
         push!(lua_stack, frame)
     end

@@ -75,7 +75,12 @@ end
 
         a = [4 3 2 1]
         t3 = new_table!(LUA_STATE, a)
-        foreach(t3) do k, v
+
+        for (k, v) in t3
+            @test a[k] == v
+        end
+
+        foreach(t3) do (k, v)
             @test a[k] == v
         end
 
@@ -130,6 +135,15 @@ end
         @test status == 0 && x == 3
         f = lualoadstring("return 1")
         @test !iscfunction(f)
+
+        sum_abc(a, b... ; c) = a + sum(b) + c
+        caller = lualoadstring("""
+            local f = ...
+            return julia.LuaCall.kw(f, {c=3}, 1, 2)
+            """)
+        sum1 = caller(sum_abc)
+        sum2 = sum_abc(1, 2; c=3)
+        @test sum1 == sum2
     end
 end
 

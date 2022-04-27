@@ -113,12 +113,19 @@ end
 
 const LuaIterable = Union{LuaTable,LuaUserData}
 
-function Base.foreach(f, t::LuaIterable)
+function Base.iterate(t::LuaTable)
     checkstack(LS(t), 2)
     @inbounds push!(LS(t), nothing)
-    while !iszero(lua_next(LS(t), idx(t)))
-        f(LS(t)[-2], LS(t)[-1])
-        pop!(LS(t), 1)
+    if !iszero(lua_next(LS(t), idx(t)))
+        (getstack(LS(t), -2), getstack(LS(t), -1)), top(LS(t))
+    end
+end
+
+function Base.iterate(t::LuaTable, last_top::Cint)
+    @assert top(LS(t)) == last_top
+    pop!(LS(t), 1)
+    if !iszero(lua_next(LS(t), idx(t)))
+        (getstack(LS(t), -2), getstack(LS(t), -1)), top(LS(t))
     end
 end
 
