@@ -1,7 +1,8 @@
 
-function new_thread!(LS::LuaState, main::LuaCallable=nothing)
-    lua_newthread(LS)
-    start(t, main)
+function new_thread!(LS::LuaState, main::Union{LuaCallable,Nothing}=nothing)
+    t = LuaThread(lua_newthread(LS))
+    isnothing(main) || start(t, main)
+    t
 end
 
 function status(t::LuaThread)
@@ -12,6 +13,14 @@ function start(t::LuaThread, main::LuaCallable)
     push!(t, main)
 end
 
+
+
+"""
+    resume(host::LuaState, guest::LuaThread, args...; multiret=false, stacktrace=nothing)
+
+Resume a thread `guest` with arguments `args`. The results will be moved to `host`. Keyword arguments
+are similar to `(::LuaFunction)(...)`.
+"""
 function resume(host::LuaState, guest::LuaThread, args...; multiret=false, stacktrace=nothing)
     host = get_julia_wrapper(host)
     push!(guest, args...)

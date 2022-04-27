@@ -103,3 +103,5 @@ end
 function return_on_lua_stack(LS::LuaState, range::AbstractVector)
     PopStack([getstack(LS, i) for i in range], LS, length(range))
 end
+
+Base.getindex(pop::PopStack) = unwrap_popstack(pop)

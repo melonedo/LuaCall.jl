@@ -142,7 +142,7 @@ end
 
         code = lualoadstring(LS, """
         return coroutine.create(function (a, b)
-            c, d = coroutine.yield(a + b)
+            local c, d = coroutine.yield(a + b)
             return a + b - c - d
         end)""")
         thread = code()
@@ -158,6 +158,18 @@ end
         @test diff == 1 + 2 - 3 - 4
 
         @test_throws LuaCall.LuaError resume(LS, thread)
+
+        thread2 = LuaCall.new_thread!(LS)
+        main_fn = lualoadstring(LS, """
+            return function (a, b)
+                local c, d = coroutine.yield(a + b)
+                return a + b - c - d
+            end""")[]()
+        start(thread2, main_fn)
+        sum2 = resume(LS, thread2, 1, 2)
+        @test sum2 == 1 + 2
+        diff2 = resume(LS, thread2, 3, 4)
+        @test diff2 == 1 + 2 - 3 - 4
     end
 end
 
